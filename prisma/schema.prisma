@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+enum UserRole {
+  BUSINESS
+  EXPERT
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole
+  location  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  expertProfile ExpertProfile?
+  sentQuotes    QuoteRequest[] @relation("BusinessQuotes")
+  receivedQuotes QuoteRequest[] @relation("ExpertQuotes")
+  reviewsGiven  Review[]       @relation("ReviewsByBusiness")
+  reviewsReceived Review[]     @relation("ReviewsForExpert")
+}
+
+model ExpertProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  title       String   
+  bio         String?
+  hourlyRate  Float?
+  experience  Int      // years
+  rating      Float    @default(0)
+  isAvailable Boolean  @default(true)
+
+  user        User     @relation(fields: [userId], references: [id])
+  expertises  Expertise[]
+}
+
+model Expertise {
+  id              String   @id @default(uuid())
+  name            String  
+  expertProfileId String
+
+  expertProfile   ExpertProfile @relation(fields: [expertProfileId], references: [id])
+}
+
+model QuoteRequest {
+  id          String   @id @default(uuid())
+  description String
+  budget      Float?
+  status      String   @default("PENDING") // PENDING | ACCEPTED | REJECTED
+  createdAt   DateTime @default(now())
+
+  businessId  String
+  expertId    String
+
+  business    User @relation("BusinessQuotes", fields: [businessId], references: [id])
+  expert      User @relation("ExpertQuotes", fields: [expertId], references: [id])
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  rating      Int      
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  businessId  String
+  expertId    String
+
+  business    User @relation("ReviewsByBusiness", fields: [businessId], references: [id])
+  expert      User @relation("ReviewsForExpert", fields: [expertId], references: [id])
+}
+
