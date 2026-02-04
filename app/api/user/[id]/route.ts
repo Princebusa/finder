@@ -1,28 +1,45 @@
 import prisma from "@/prisma/db";
-import { useSession } from "next-auth/react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(req: NextRequest) {
-  const { data: session } = useSession();
-
-  const user = session?.user?.email;
-  if (!user) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  const email = session?.user?.email;
+  if (!email) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  await prisma.user.findUnique({
-    where: {
-      email: user,
-      role: 'BUSINESS',
-    },
+  const { id } = await params;
+  const user = await prisma.user.findUnique({
+    where: { id },
     select: {
       id: true,
       name: true,
       email: true,
+      location: true,
+      role: true,
       createdAt: true,
-      updatedAt: true,
+      expertProfile: {
+        select: {
+          id: true,
+          title: true,
+          bio: true,
+          hourlyRate: true,
+          experience: true,
+          rating: true,
+          isAvailable: true,
+          expertises: { select: { name: true } },
+        },
+      },
     },
   });
 
-  return NextResponse.json({ message: "User found" }, { status: 200 });
+  if (!user) {
+    return NextResponse.json({ message: "User not found" }, { status: 404 });
+  }
+  return NextResponse.json(user);
 }
